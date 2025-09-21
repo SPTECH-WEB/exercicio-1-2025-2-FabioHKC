@@ -1,36 +1,96 @@
 package school.sptech.prova_ac1;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
 
+@RestController
+@RequestMapping("/usuarios")
 public class UsuarioController {
+    @Autowired
+    private UsuarioRepository usuarioRepository;
 
+    @GetMapping
     public ResponseEntity<List<Usuario>> buscarTodos() {
-        return ResponseEntity.internalServerError().build();
+        List<Usuario> usuarios = usuarioRepository.findAll();
+
+        if(usuarios.isEmpty()){
+            return ResponseEntity.noContent().build();
+        }
+
+        return ResponseEntity.ok(usuarios);
     }
 
-    public ResponseEntity<Usuario> criar(Usuario usuario) {
-        return ResponseEntity.internalServerError().build();
+    @PostMapping
+    public ResponseEntity<Usuario> criar(@RequestBody Usuario usuario) {
+        if(usuarioRepository.existsByEmail(usuario.getEmail()) ||
+            usuarioRepository.existsByCpf(usuario.getCpf())){
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        }
+
+        Usuario usuarioCriado = usuarioRepository.save(usuario);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(usuarioCriado);
     }
 
-    public ResponseEntity<Usuario> buscarPorId(Integer id) {
-        return ResponseEntity.internalServerError().build();
+    @GetMapping("/{id}")
+    public ResponseEntity<Usuario> buscarPorId(@PathVariable Integer id) {
+        Usuario usuarioEncontrado = usuarioRepository.findById(id)
+                                    .orElse(null);
+
+        if(usuarioEncontrado == null){
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(usuarioEncontrado);
     }
 
-    public ResponseEntity<Void> deletar(Integer id) {
-        return ResponseEntity.internalServerError().build();
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletar(@PathVariable Integer id) {
+        if(usuarioRepository.findById(id).isEmpty()){
+            return ResponseEntity.notFound().build();
+        }
+
+        usuarioRepository.deleteById(id);
+
+        return ResponseEntity.noContent().build();
     }
 
-    public ResponseEntity<List<Usuario>> buscarPorDataNascimento(LocalDate nascimento) {
-        return ResponseEntity.internalServerError().build();
+    @GetMapping("/filtro-data")
+    public ResponseEntity<List<Usuario>> buscarPorDataNascimento(@RequestParam("nascimento") LocalDate teste) {
+        List<Usuario> usuariosEncontrados = usuarioRepository.findByDataNascimentoGreaterThan(teste);
+
+        if(usuariosEncontrados.isEmpty()){
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(usuariosEncontrados);
     }
 
+    @PutMapping("/{id}")
     public ResponseEntity<Usuario> atualizar(
-            Integer id,
-            Usuario usuario
+            @PathVariable Integer id,
+            @RequestBody Usuario usuario
     ) {
-        return ResponseEntity.internalServerError().build();
+
+        Usuario usuarioEmailEncontrado = usuarioRepository.findByEmail(usuario.getEmail());
+
+        Usuario usuarioCpfEncontrado = usuarioRepository.findByCpf(usuario.getCpf());
+
+        if(usuarioEmailEncontrado != null &&
+           !usuarioEmailEncontrado.getId().equals(id)
+                ||
+           usuarioCpfEncontrado != null &&
+           !usuarioCpfEncontrado.getId().equals(id)){
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        }
+
+        usuario.setId(id);
+
+        return ResponseEntity.ok(usuarioRepository.save(usuario));
+
     }
 }
